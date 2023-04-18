@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { ChatLineStack } from '../lib/chat_line-stack';
+import { ChatLineStack } from '../lib/ChatLine-stack';
 
 const app = new cdk.App();
 new ChatLineStack(app, 'ChatLineStack', {
