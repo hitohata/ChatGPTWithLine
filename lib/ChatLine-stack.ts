@@ -1,16 +1,37 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as nodeLambda from "aws-cdk-lib/aws-lambda-nodejs";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+
+interface IProps extends cdk.StackProps {
+  API_KEY: string;
+}
 
 export class ChatLineStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+
+  private readonly environment: IProps;
+
+  constructor(scope: Construct, id: string, props: IProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    this.environment = props;
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'ChatLineQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    this.lineFunction();
+
+  }
+
+  /**
+   * this is private function in the CDK stack.
+   * This function creates a lambda function that will be used to handle the massage from the Line.
+   * @returns {lambda.Function}
+   */
+  private lineFunction(): lambda.Function {
+    return new nodeLambda.NodejsFunction(this, "lineFunction", {
+					runtime: lambda.Runtime.NODEJS_18_X,
+					functionName: "lineWithCheatGPTFunction",
+          environment: {
+            API_KEY: this.environment.API_KEY
+          }
+			})
   }
 }
