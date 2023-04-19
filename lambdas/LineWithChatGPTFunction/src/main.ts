@@ -1,30 +1,45 @@
-import { ContainerDefinition } from "aws-cdk-lib/aws-ecs";
-import { open } from "fs";
-import { Configuration, OpenAIApi } from "openai";
-import * as fs from "fs";
-import { type } from "os";
+import { APIGatewayProxyEvent } from "aws-lambda";
+import { LineClient } from "OtherResources/Line/LineClient";
+import { ChatGPTClient } from "OtherResources/ChatGPT/ChatGPTClient";
 
-const configuration = new Configuration({
-    apiKey: process.env.API_KEY
-})
+const chatGPTApiClient = new ChatGPTClient();
 
-const openai = new OpenAIApi(configuration);
-const response = await openai.listEngines();
+export const lambdaHandler = async (event: APIGatewayProxyEvent) => {
 
-const chat = openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
-    messages: [{
-        role: "user",
-        content: "Say Hi to me"
-    }]
-})
+    console.log(event)
 
-try {
+    try {
 
-    const res = await chat;
+        const lineClientOrError = LineClient.create(event);
 
-    console.log(res.data.choices);
+        if (lineClientOrError.isError()) {
+            console.error(lineClientOrError.getError());
+            return {
+                statusCode: 400,
+                body: JSON.stringify(lineClientOrError.getError())
+            }
+        }
+        const lineClint = lineClientOrError.getValue();
 
-} catch (error) {
-    console.log(error);
+        const responseText = await chatGPTApiClient.createChatCompletion(lineClint.userInput);
+
+        await lineClint.replayMessage(responseText);
+
+        return {
+            statusCode: 200,
+            body: null
+        }
+
+    } catch (error) {
+
+        if (error instanceof Error) {
+            console.error(error.message);
+        }
+
+        return {
+            statusCode: 400,
+            body: JSON.stringify(error)
+        }
+    }
+
 }
