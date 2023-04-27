@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as nodeLambda from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as path from "path";
 
 interface IProps extends cdk.StackProps {
@@ -24,6 +25,15 @@ export class ChatLineStack extends cdk.Stack {
     this.channelAccessToken = props.CHANNEL_ACCESS_TOKEN;
 
     const lineChatFunction = this.lineFunction();
+    const chatGPTFunction = this.chatGPTFunction();
+
+    const messageQueue = new sqs.Queue(this, "ChatQueue", {
+      queueName: "QueueFromLineForChatGPT",
+    })
+
+    messageQueue.grantSendMessages(lineChatFunction);
+    messageQueue.grantConsumeMessages(chatGPTFunction)
+
     this.apiGateway(lineChatFunction);
 
   }
@@ -46,6 +56,21 @@ export class ChatLineStack extends cdk.Stack {
           handler: "lambdaHandler",
           timeout: cdk.Duration.seconds(30),
 			})
+  }
+
+  private chatGPTFunction(): lambda.Function {
+    return new nodeLambda.NodejsFunction(this, "chatGPTFunction", {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      functionName: "chatGPTLineFunction",
+      environment: {
+        API_KEY: this.apiKey,
+        LINE_CHANNEL_SECRET: this.channelSecret,
+        LINE_CHANNEL_ACCESS_TOKEN: this.channelAccessToken
+      },
+      entry: path.join(__dirname, "../lambdas/ChatGPTFunction/src/main.ts"),
+      handler: "lambdaHandler",
+      timeout: cdk.Duration.minutes(2),
+    })
   }
 
   private apiGateway(lambdaFunction: lambda.Function) {
