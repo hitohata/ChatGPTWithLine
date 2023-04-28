@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import * as nodeLambda from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as sqs from "aws-cdk-lib/aws-sqs";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import * as path from "path";
 
 interface IProps extends cdk.StackProps {
@@ -27,15 +28,26 @@ export class ChatLineStack extends cdk.Stack {
     const lineChatFunction = this.lineFunction();
     const chatGPTFunction = this.chatGPTFunction();
 
-    const messageQueue = new sqs.Queue(this, "ChatQueue", {
-      queueName: "QueueFromLineForChatGPT",
-    })
+    const messageQueue = this.sqsDefinition();
+
+    const eventSource = new SqsEventSource(messageQueue);
 
     messageQueue.grantSendMessages(lineChatFunction);
-    messageQueue.grantConsumeMessages(chatGPTFunction)
+    chatGPTFunction.addEventSource(eventSource);
 
     this.apiGateway(lineChatFunction);
 
+  }
+
+  /**
+   * create SQS's definition
+   * @returns {sqs.Queue}
+   */
+  private sqsDefinition(): sqs.Queue {
+    return new sqs.Queue(this, "ChatQueue", {
+      queueName: "QueueFromLineForChatGPT",
+      visibilityTimeout: cdk.Duration.minutes(2),
+    })
   }
 
   /**
@@ -58,6 +70,10 @@ export class ChatLineStack extends cdk.Stack {
 			})
   }
 
+  /**
+   * chat GPT function
+   * @returns {lambda.Function}
+   */
   private chatGPTFunction(): lambda.Function {
     return new nodeLambda.NodejsFunction(this, "chatGPTFunction", {
       runtime: lambda.Runtime.NODEJS_18_X,
