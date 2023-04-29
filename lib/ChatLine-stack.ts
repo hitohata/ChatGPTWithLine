@@ -25,12 +25,14 @@ export class ChatLineStack extends cdk.Stack {
     this.channelSecret = props.CHANNEL_SECRET;
     this.channelAccessToken = props.CHANNEL_ACCESS_TOKEN;
 
-    const lineChatFunction = this.lineFunction();
-    const chatGPTFunction = this.chatGPTFunction();
-
     const messageQueue = this.sqsDefinition();
 
-    const eventSource = new SqsEventSource(messageQueue);
+    const lineChatFunction = this.lineFunction(messageQueue);
+    const chatGPTFunction = this.chatGPTFunction();
+
+    const eventSource = new SqsEventSource(messageQueue, {
+      maxConcurrency: 2
+    });
 
     messageQueue.grantSendMessages(lineChatFunction);
     chatGPTFunction.addEventSource(eventSource);
@@ -46,7 +48,7 @@ export class ChatLineStack extends cdk.Stack {
   private sqsDefinition(): sqs.Queue {
     return new sqs.Queue(this, "ChatQueue", {
       queueName: "QueueFromLineForChatGPT",
-      visibilityTimeout: cdk.Duration.minutes(2),
+      visibilityTimeout: cdk.Duration.minutes(12),
     })
   }
 
@@ -55,14 +57,16 @@ export class ChatLineStack extends cdk.Stack {
    * This function creates a lambda function that will be used to handle the massage from the Line.
    * @returns {lambda.Function}
    */
-  private lineFunction(): lambda.Function {
+  private lineFunction(sqs: sqs.Queue): lambda.Function {
     return new nodeLambda.NodejsFunction(this, "lineFunction", {
 					runtime: lambda.Runtime.NODEJS_18_X,
 					functionName: "lineWithCheatGPTFunction",
           environment: {
+            REGION: this.region,
             API_KEY: this.apiKey,
             LINE_CHANNEL_SECRET: this.channelSecret,
-            LINE_CHANNEL_ACCESS_TOKEN: this.channelAccessToken
+            LINE_CHANNEL_ACCESS_TOKEN: this.channelAccessToken,
+            SQS_URL: sqs.queueUrl
           },
           entry: path.join(__dirname, "../lambdas//LineWithChatGPTFunction/src/main.ts"),
           handler: "lambdaHandler",
