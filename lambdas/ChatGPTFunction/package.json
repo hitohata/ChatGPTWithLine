@@ -1,5 +1,5 @@
 {
-  "name": "LineWithChatgptFunction",
+  "name": "chatgptfunction",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -8,17 +8,13 @@
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@aws-sdk/client-sqs": "^3.321.1",
-    "openai": "^3.2.1"
-  },
   "devDependencies": {
-    "@line/bot-sdk": "^7.5.2",
+    "@aws-sdk/client-sqs": "^3.321.1",
     "@types/aws-lambda": "^8.10.114",
     "typescript": "^5.0.4"
   },
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
+  "dependencies": {
+    "@line/bot-sdk": "^7.5.2",
+    "openai": "^3.2.1"
   }
 }

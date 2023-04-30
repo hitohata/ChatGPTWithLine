@@ -2,6 +2,8 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as nodeLambda from "aws-cdk-lib/aws-lambda-nodejs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as sqs from "aws-cdk-lib/aws-sqs";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import * as path from "path";
 
 interface IProps extends cdk.StackProps {
@@ -23,9 +25,31 @@ export class ChatLineStack extends cdk.Stack {
     this.channelSecret = props.CHANNEL_SECRET;
     this.channelAccessToken = props.CHANNEL_ACCESS_TOKEN;
 
-    const lineChatFunction = this.lineFunction();
+    const messageQueue = this.sqsDefinition();
+
+    const lineChatFunction = this.lineFunction(messageQueue);
+    const chatGPTFunction = this.chatGPTFunction(messageQueue);
+
+    const eventSource = new SqsEventSource(messageQueue, {
+      maxConcurrency: 2
+    });
+
+    messageQueue.grantSendMessages(lineChatFunction);
+    chatGPTFunction.addEventSource(eventSource);
+
     this.apiGateway(lineChatFunction);
 
+  }
+
+  /**
+   * create SQS's definition
+   * @returns {sqs.Queue}
+   */
+  private sqsDefinition(): sqs.Queue {
+    return new sqs.Queue(this, "ChatQueue", {
+      queueName: "QueueFromLineForChatGPT",
+      visibilityTimeout: cdk.Duration.minutes(12),
+    })
   }
 
   /**
@@ -33,19 +57,40 @@ export class ChatLineStack extends cdk.Stack {
    * This function creates a lambda function that will be used to handle the massage from the Line.
    * @returns {lambda.Function}
    */
-  private lineFunction(): lambda.Function {
+  private lineFunction(sqs: sqs.Queue): lambda.Function {
     return new nodeLambda.NodejsFunction(this, "lineFunction", {
 					runtime: lambda.Runtime.NODEJS_18_X,
 					functionName: "lineWithCheatGPTFunction",
           environment: {
-            API_KEY: this.apiKey,
+            REGION: this.region,
             LINE_CHANNEL_SECRET: this.channelSecret,
-            LINE_CHANNEL_ACCESS_TOKEN: this.channelAccessToken
+            SQS_URL: sqs.queueUrl
           },
           entry: path.join(__dirname, "../lambdas//LineWithChatGPTFunction/src/main.ts"),
           handler: "lambdaHandler",
           timeout: cdk.Duration.seconds(30),
 			})
+  }
+
+  /**
+   * chat GPT function
+   * @returns {lambda.Function}
+   */
+  private chatGPTFunction(sqs: sqs.Queue): lambda.Function {
+    return new nodeLambda.NodejsFunction(this, "chatGPTFunction", {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      functionName: "chatGPTLineFunction",
+      environment: {
+        API_KEY: this.apiKey,
+        LINE_CHANNEL_SECRET: this.channelSecret,
+        LINE_CHANNEL_ACCESS_TOKEN: this.channelAccessToken,
+        SQS_URL: sqs.queueUrl,
+        REGION: this.region
+      },
+      entry: path.join(__dirname, "../lambdas/ChatGPTFunction/src/main.ts"),
+      handler: "lambdaHandler",
+      timeout: cdk.Duration.minutes(2),
+    })
   }
 
   private apiGateway(lambdaFunction: lambda.Function) {

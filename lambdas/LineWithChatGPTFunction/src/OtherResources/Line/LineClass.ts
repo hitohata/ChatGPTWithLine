@@ -3,47 +3,26 @@ import { APIGatewayProxyEvent } from "aws-lambda";
 import { LINE_CHANNEL_ACCESS_TOKEN, LINE_CHANNEL_SECRET } from "settings";
 import { Result } from "Utils/Result";
 
-interface ILineClient {
-    replayMessage(message: string): Promise<void>
-}
+export class LineClass {
 
-export class LineClient implements ILineClient {
+    private readonly _userInput: string;
+    private readonly _replayToken: string;
 
-    private readonly client: Client;
-    private readonly replayToken: string
-    private readonly message: string;
+    private constructor (replayToken: string, userInput: string) {
 
-    constructor (replayToken: string, message: string) {
-
-        this.replayToken = replayToken;
-        this.message = message;
-
-        this.client = new Client({
-            channelAccessToken: LINE_CHANNEL_ACCESS_TOKEN,
-            channelSecret: LINE_CHANNEL_SECRET,
-        })
+        this._replayToken = replayToken;
+        this._userInput = userInput;
     }
 
     get userInput(): string {
-        return this.message;
+        return this._userInput;
     }
 
-    /**
-     * replay an text message to the user.
-     * @param message 
-     */
-    async replayMessage(message: string): Promise<void> {
+    get replayToken(): string {
+        return this._replayToken;
+    }
 
-        const textMessage: TextMessage = {
-            type: "text",
-            text: message
-        };
-
-        await this.client.replyMessage(this.replayToken, textMessage);
-
-    };
-
-    static create(event: APIGatewayProxyEvent): Result < LineClient, string > {
+    static create(event: APIGatewayProxyEvent): Result<LineClass, string> {
         if (!event.headers['x-line-signature']) {
             return Result.fail("Signature is not found in the request.")
         };
@@ -77,7 +56,7 @@ export class LineClient implements ILineClient {
         const userInput = webhookRequestBody.events[0].message.text;
 
 
-        return Result.ok(new LineClient(replayToken, userInput));
+        return Result.ok(new LineClass(replayToken, userInput));
     }
 
 
