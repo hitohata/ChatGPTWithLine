@@ -28,7 +28,7 @@ export class ChatLineStack extends cdk.Stack {
     const messageQueue = this.sqsDefinition();
 
     const lineChatFunction = this.lineFunction(messageQueue);
-    const chatGPTFunction = this.chatGPTFunction();
+    const chatGPTFunction = this.chatGPTFunction(messageQueue);
 
     const eventSource = new SqsEventSource(messageQueue, {
       maxConcurrency: 2
@@ -63,9 +63,7 @@ export class ChatLineStack extends cdk.Stack {
 					functionName: "lineWithCheatGPTFunction",
           environment: {
             REGION: this.region,
-            API_KEY: this.apiKey,
             LINE_CHANNEL_SECRET: this.channelSecret,
-            LINE_CHANNEL_ACCESS_TOKEN: this.channelAccessToken,
             SQS_URL: sqs.queueUrl
           },
           entry: path.join(__dirname, "../lambdas//LineWithChatGPTFunction/src/main.ts"),
@@ -78,14 +76,16 @@ export class ChatLineStack extends cdk.Stack {
    * chat GPT function
    * @returns {lambda.Function}
    */
-  private chatGPTFunction(): lambda.Function {
+  private chatGPTFunction(sqs: sqs.Queue): lambda.Function {
     return new nodeLambda.NodejsFunction(this, "chatGPTFunction", {
       runtime: lambda.Runtime.NODEJS_18_X,
       functionName: "chatGPTLineFunction",
       environment: {
         API_KEY: this.apiKey,
         LINE_CHANNEL_SECRET: this.channelSecret,
-        LINE_CHANNEL_ACCESS_TOKEN: this.channelAccessToken
+        LINE_CHANNEL_ACCESS_TOKEN: this.channelAccessToken,
+        SQS_URL: sqs.queueUrl,
+        REGION: this.region
       },
       entry: path.join(__dirname, "../lambdas/ChatGPTFunction/src/main.ts"),
       handler: "lambdaHandler",

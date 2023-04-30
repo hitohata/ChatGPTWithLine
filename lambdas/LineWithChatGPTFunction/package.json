@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.321.1",
     "openai": "^3.2.1"
   },
   "devDependencies": {
@@ -16,7 +17,7 @@
     "@types/aws-lambda": "^8.10.114",
     "typescript": "^5.0.4"
   },
-   "ts-node": {
+  "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"
   }

@@ -9,7 +9,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@aws-sdk/client-sqs": "^3.321.1",
     "@types/aws-lambda": "^8.10.114",
     "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^7.5.2",
+    "openai": "^3.2.1"
   }
 }

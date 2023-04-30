@@ -2,6 +2,10 @@ import { Configuration, OpenAIApi } from "openai";
 import { CHAT_GPT_API_KEY } from "settings";
 
 interface IChatGPTClient {
+    createChatCompletion(input: string): Promise<string>
+}
+
+interface IChatGPTClient {
     createChatCompletion(input: string): Promise<string>;
 }
 

@@ -1,29 +1,28 @@
 import { APIGatewayProxyEvent } from "aws-lambda";
-import { LineClient } from "OtherResources/Line/LineClient";
-import { ChatGPTClient } from "OtherResources/ChatGPT/ChatGPTClient";
-
-const chatGPTApiClient = new ChatGPTClient();
+import { LineClass } from "OtherResources/Line/LineClass";
+import { SQSClient } from "OtherResources/SQSClient/SQSClient";
 
 export const lambdaHandler = async (event: APIGatewayProxyEvent) => {
 
-    console.log(event)
-
     try {
 
-        const lineClientOrError = LineClient.create(event);
+        const lineOrError = LineClass.create(event);
+        const sqsClient = new SQSClient();
 
-        if (lineClientOrError.isError()) {
-            console.error(lineClientOrError.getError());
+        if (lineOrError.isError()) {
+            console.error(lineOrError.getError());
             return {
                 statusCode: 400,
-                body: JSON.stringify(lineClientOrError.getError())
+                body: JSON.stringify(lineOrError.getError())
             }
         }
-        const lineClint = lineClientOrError.getValue();
 
-        const responseText = await chatGPTApiClient.createChatCompletion(lineClint.userInput);
+        const line = lineOrError.getValue();
 
-        await lineClint.replayMessage(responseText);
+        await sqsClient.sendMessage({
+            lineReplayToken: line.replayToken,
+            userInput: line.userInput
+        })
 
         return {
             statusCode: 200,
